@@ -48,7 +48,8 @@ def draw_graphs(axes, secondary_axes, time, temp, feels_like, rain, snow, day_or
     temp_line = axes.plot(time, temp, 'red', label=LABEL_TEMP)
     feels_like_line = axes.plot(time, feels_like, 'lightsalmon', label="gefühlt", zorder=0)
     rain_line = secondary_axes.plot(time, rain, 'blue', label="Regen")
-    snow_line = secondary_axes.plot(time, snow, 'lightskyblue', label="Schnee", zorder=0)
+    if any(s > 0 for s in snow):
+        snow_line = secondary_axes.plot(time, snow, 'lightskyblue', label="Schnee", zorder=0)
     max_height = max(temp) - min(temp) + TEMP_OFFSET
     height = get_height_array(day_or_night, max_height)
     bottom = min(temp) - TEMP_OFFSET
@@ -74,7 +75,7 @@ def set_axes(axes, secondary_axes):
 
 
 def set_x_axes(axes):
-    axes.xaxis.set_major_locator(MultipleLocator(8))
+    axes.xaxis.set_major_locator(MultipleLocator(4))
     axes.xaxis.set_minor_locator(MultipleLocator(1))
     # axes.set_xlabel("Zeit")
     set_labels_rotation(axes)
