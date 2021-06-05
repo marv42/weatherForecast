@@ -1,5 +1,6 @@
 import argparse
 import locale
+import os
 from datetime import datetime
 
 import requests
@@ -9,7 +10,10 @@ import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
 
-from apiKey import API_KEY
+if 'OPEN_WEATHER_MAP_API_KEY' in os.environ:
+    API_KEY = os.environ['OPEN_WEATHER_MAP_API_KEY']
+else:
+    from apiKey import API_KEY
 
 ALPHA = 0.5
 TEMP_OFFSET = 3
