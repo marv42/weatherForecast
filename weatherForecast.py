@@ -1,14 +1,15 @@
 import argparse
+import json
 import locale
 import os
 from datetime import datetime
 
+import numpy as np
 import requests
-import json
 import matplotlib
-
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
+import mplcursors
 
 if 'OPEN_WEATHER_MAP_API_KEY' in os.environ:
     API_KEY = os.environ['OPEN_WEATHER_MAP_API_KEY']
@@ -17,7 +18,6 @@ else:
 
 ALPHA = 0.5
 TEMP_OFFSET = 3
-# TIME_UTC = 'time_utc'
 TIME = 'time'
 RAIN = 'rain'
 SNOW = 'snow'
@@ -26,11 +26,26 @@ FEELS_LIKE = 'feels_like'
 DAY_OR_NIGHT = 'day_or_night'
 THREE_HOURS = '3h'
 LABEL_TEMP = "Temperatur"
+LABEL_FEEL = "gefühlt"
+DEG = "°C"
+MM = "mm"
 
 BASE_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric"
 
 
 def create_picture(data, city_name):
+    set_mpl_params()
+    figure, axes = plt.subplots(constrained_layout=True)
+    set_title(city_name)
+    secondary_axes = axes.twinx()
+    draw_graphs(axes, secondary_axes, data)
+    set_axes(axes, secondary_axes)
+    set_legend(axes, secondary_axes)
+    activate_tooltip(figure)
+    return plt
+
+
+def draw_graphs(axes, secondary_axes, data):
     range_length = range(len(data))
     time = [data[i][TIME] for i in range_length]
     temp = [data[i][TEMP] for i in range_length]
@@ -38,20 +53,11 @@ def create_picture(data, city_name):
     rain = [data[i][RAIN] for i in range_length]
     snow = [data[i][SNOW] for i in range_length]
     day_or_night = [data[i][DAY_OR_NIGHT] for i in range_length]
-    set_mpl_params()
-    figure, axes = plt.subplots(constrained_layout=True)
-    set_title(city_name)
-    secondary_axes = axes.twinx()
-    draw_graphs(axes, secondary_axes, time, temp, feels_like, rain, snow, day_or_night)
-    set_axes(axes, secondary_axes)
-    set_legend(axes, secondary_axes)
-    return plt
 
-
-def draw_graphs(axes, secondary_axes, time, temp, feels_like, rain, snow, day_or_night):
     temp_line = axes.plot(time, temp, 'red', label=LABEL_TEMP)
-    feels_like_line = axes.plot(time, feels_like, 'lightsalmon', label="gefühlt", zorder=0)
+    feels_like_line = axes.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, zorder=0)
     rain_line = secondary_axes.plot(time, rain, 'blue', label="Regen")
+    snow_line = None
     if any(s > 0 for s in snow):
         snow_line = secondary_axes.plot(time, snow, 'lightskyblue', label="Schnee", zorder=0)
     max_height = max(temp) - min(temp) + TEMP_OFFSET
@@ -90,10 +96,10 @@ def set_labels_rotation(axes):
 
 
 def set_y_axes(axes, secondary_axes):
-    axes.set_ylabel(f"{LABEL_TEMP} (°C)")
+    axes.set_ylabel(f"{LABEL_TEMP} ({DEG})")
     axes.yaxis.grid(True)
     # secondary_axes.yaxis.grid(True)
-    secondary_axes.set_ylabel("Niederschlag (mm)")
+    secondary_axes.set_ylabel(f"Niederschlag ({MM})")
 
 
 def set_legend(axes, secondary_axes):
@@ -101,6 +107,21 @@ def set_legend(axes, secondary_axes):
     temp_legend.get_frame().set_alpha(ALPHA)  # TODO geht net :-(
     precipitation_legend = secondary_axes.legend(loc='upper right')
     precipitation_legend.get_frame().set_alpha(ALPHA)
+
+
+def activate_tooltip(figure):
+    lines = [line for ax in figure.axes for line in ax.lines]
+    cursor = mplcursors.cursor(lines, hover=True)
+
+    @cursor.connect("add")
+    def _(sel):
+        text = sel.annotation._text.split('\n')
+        time = f"{text[3]}"
+        sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=np.inf)  # TODO is immer noch manchmal hinterm Regen
+        sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
+        labels = [line._label for line in sel.artist.axes.lines]
+        if labels[0] in [LABEL_TEMP, LABEL_FEEL]:
+            sel.annotation.set_text(f"{sel.target[1]:.1f} {DEG}\n{time}")
 
 
 def json_2_data_table(json):
