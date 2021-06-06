@@ -30,7 +30,7 @@ LABEL_TEMP = "Temperatur"
 BASE_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric"
 
 
-def visualize_data(data, city_name):
+def create_picture(data, city_name):
     range_length = range(len(data))
     time = [data[i][TIME] for i in range_length]
     temp = [data[i][TEMP] for i in range_length]
@@ -45,7 +45,7 @@ def visualize_data(data, city_name):
     draw_graphs(axes, secondary_axes, time, temp, feels_like, rain, snow, day_or_night)
     set_axes(axes, secondary_axes)
     set_legend(axes, secondary_axes)
-    plt.show()
+    return plt
 
 
 def draw_graphs(axes, secondary_axes, time, temp, feels_like, rain, snow, day_or_night):
@@ -132,8 +132,9 @@ def get_data(city):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Get weather forecast data and display it')
-    parser.add_argument('--city', help='Name of the city the weather for which should be shown')
+    parser = argparse.ArgumentParser(description='get weather forecast data and display it')
+    parser.add_argument('--city', help='name of the city the weather forecast for which should be shown')
+    parser.add_argument('--save_pic', action='store_true', help='save the picture file (as png) instead of displaying it')
     return parser.parse_args()
 
 
@@ -146,4 +147,8 @@ if __name__ == '__main__':
     if json['cod'] != 200:
         print(f"Error: {json['message']}")
     data = json_2_data_table(json)
-    visualize_data(data, city_name)
+    plt = create_picture(data, city_name)
+    if args.save_pic:
+        plt.savefig("weatherForecast.png")
+    else:
+        plt.show()
