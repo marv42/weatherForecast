@@ -1,0 +1,27 @@
+<html>
+  <head>
+	 <meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+	 <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+				integrity="sha384-vtXRMe3mGCbOeY7l30aIg8H9p3GdeSe4IFlP6G8JMa7o7lXvnz3GFKzPxzJdPfGK"
+				crossorigin="anonymous">
+	 </script>
+	 <script type="text/javascript">
+		function RecreateDiagram() {
+			 $.ajax({
+				  url: "weatherForecast.py",
+				  context: document.body
+			 }).done(function() {
+				  alert('finished python script');;
+			 });
+		}
+
+		window.onload = function() {
+			 RecreateDiagram();
+		}
+	 </script>
+  </head>
+
+  <body>
+	 <img src = "./weatherForecast.png" alt="Wetter-Vorhersage als Linien-Diagramm der Temperatur und des Niederschlags" />
+  </body>
+</html>
