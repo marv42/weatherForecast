@@ -16,8 +16,7 @@ if 'OPEN_WEATHER_MAP_API_KEY' in os.environ:
 else:
     from apiKey import API_KEY
 
-ALPHA = 0.5
-TEMP_OFFSET = 3
+ALPHA = 0.9
 TIME = 'time'
 RAIN = 'rain'
 SNOW = 'snow'
@@ -60,14 +59,13 @@ def draw_graphs(axes, secondary_axes, data):
     snow_line = None
     if any(s > 0 for s in snow):
         snow_line = secondary_axes.plot(time, snow, 'lightskyblue', label="Schnee", zorder=0)
-    max_height = max(temp) - min(temp) + TEMP_OFFSET
-    height = get_height_array(day_or_night, max_height)
-    bottom = min(temp) - TEMP_OFFSET
-    day_or_night_bars = axes.bar(time, height, bottom=bottom, width=1, color='whitesmoke', zorder=0)
+    min_height = min(min(temp), 0)
+    height = get_height_array(day_or_night, max(temp), min_height)
+    day_or_night_bars = axes.bar(time, height, bottom=min_height, width=1, color='whitesmoke', zorder=0)
 
 
-def get_height_array(day_or_night, height):
-    return [height if dn == 'n' else 0 for dn in day_or_night]
+def get_height_array(day_or_night, height, min_height):
+    return [height if dn == 'n' else min_height for dn in day_or_night]
 
 
 def set_mpl_params():
@@ -104,7 +102,8 @@ def set_y_axes(axes, secondary_axes):
 
 def set_legend(axes, secondary_axes):
     temp_legend = axes.legend(loc='upper left')
-    temp_legend.get_frame().set_alpha(ALPHA)  # TODO geht net :-(
+    temp_legend.get_frame().set_alpha(ALPHA)
+    temp_legend.get_frame().set_zorder(np.inf)  # TODO hilft net :-(
     precipitation_legend = secondary_axes.legend(loc='upper right')
     precipitation_legend.get_frame().set_alpha(ALPHA)
 
@@ -116,7 +115,7 @@ def activate_tooltip(figure):
     @cursor.connect("add")
     def _(sel):
         text = sel.annotation._text.split('\n')
-        time = f"{text[3]}"
+        time = f"{text[1].split('=')[1]} {text[3]}"
         sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=np.inf)  # TODO is immer noch manchmal hinterm Regen
         sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
         labels = [line._label for line in sel.artist.axes.lines]
