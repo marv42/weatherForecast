@@ -16,13 +16,13 @@ if 'OPEN_WEATHER_MAP_API_KEY' in os.environ:
 else:
     from apiKey import API_KEY
 
-ALPHA = 0.9
+ALPHA_LEGENDS = 0.9
 TIME = 'time'
 RAIN = 'rain'
 SNOW = 'snow'
 TEMP = 'temp'
 FEELS_LIKE = 'feels_like'
-DAY_OR_NIGHT = 'day_or_night'
+DAY_NIGHT = 'day_night'
 THREE_HOURS = '3h'
 LABEL_TEMP = "Temperatur"
 LABEL_FEEL = "gefühlt"
@@ -34,34 +34,38 @@ BASE_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric"
 
 def create_picture(data, city_name):
     set_mpl_params()
-    figure, axes = plt.subplots(constrained_layout=True)
+    figure, day_night_axis = plt.subplots(constrained_layout=True)
     set_title(city_name)
-    secondary_axes = axes.twinx()
-    draw_graphs(axes, secondary_axes, data)
-    set_axes(axes, secondary_axes)
-    set_legend(axes, secondary_axes)
+    precipitation_axis = day_night_axis.twinx()
+    temperature_axis = day_night_axis.twinx()
+    draw_graphs(day_night_axis, precipitation_axis, temperature_axis, data)
+    set_axes(day_night_axis, precipitation_axis)
+    set_legend(precipitation_axis, temperature_axis)
     activate_tooltip(figure)
     return plt
 
 
-def draw_graphs(axes, secondary_axes, data):
+def draw_graphs(day_night_axis, precipitation_axis, temperature_axis, data):
     range_length = range(len(data))
     time = [data[i][TIME] for i in range_length]
     temp = [data[i][TEMP] for i in range_length]
     feels_like = [data[i][FEELS_LIKE] for i in range_length]
     rain = [data[i][RAIN] for i in range_length]
     snow = [data[i][SNOW] for i in range_length]
-    day_or_night = [data[i][DAY_OR_NIGHT] for i in range_length]
+    day_night = [data[i][DAY_NIGHT] for i in range_length]
 
-    temp_line = axes.plot(time, temp, 'red', label=LABEL_TEMP)
-    feels_like_line = axes.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, zorder=0)
-    rain_line = secondary_axes.plot(time, rain, 'blue', label="Regen")
+    min_height = min(min(temp), 0)
+    height = get_height_array(day_night, max(temp), min_height)
+    day_night_bars = day_night_axis.bar(time, height, bottom=min_height, width=1, color='whitesmoke', zorder=0)
+    temperature_axis.set_yticks([])  # TODO warum nich day_night_axis?
+    # the order is relevant for the legends
+    rain_line = precipitation_axis.plot(time, rain, 'blue', label="Regen", zorder=2.3)
     snow_line = None
     if any(s > 0 for s in snow):
-        snow_line = secondary_axes.plot(time, snow, 'lightskyblue', label="Schnee", zorder=0)
-    min_height = min(min(temp), 0)
-    height = get_height_array(day_or_night, max(temp), min_height)
-    day_or_night_bars = axes.bar(time, height, bottom=min_height, width=1, color='whitesmoke', zorder=0)
+        snow_line = precipitation_axis.plot(time, snow, 'lightskyblue', label="Schnee", zorder=2.2)
+    temperature_axis.plot(0, 0, 'white', visible=False)
+    temp_line = temperature_axis.plot(time, temp, 'red', label=LABEL_TEMP, zorder=2.5)
+    feels_like_line = temperature_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, zorder=2.4)
 
 
 def get_height_array(day_or_night, height, min_height):
@@ -77,46 +81,46 @@ def set_title(city_name):
     plt.title(f"Wetter-Vorhersage für {city_name}")
 
 
-def set_axes(axes, secondary_axes):
-    set_x_axes(axes)
-    set_y_axes(axes, secondary_axes)
+def set_axes(day_night_axis, precipitation_axis):
+    set_ticks(day_night_axis)
+    set_labels(day_night_axis, precipitation_axis)
 
 
-def set_x_axes(axes):
-    axes.xaxis.set_major_locator(MultipleLocator(4))
-    axes.xaxis.set_minor_locator(MultipleLocator(1))
-    # axes.set_xlabel("Zeit")
-    set_labels_rotation(axes)
+def set_ticks(day_night_axis):
+    day_night_axis.xaxis.set_major_locator(MultipleLocator(4))
+    day_night_axis.xaxis.set_minor_locator(MultipleLocator(1))
+    day_night_axis.yaxis.grid(True)
+    # precipitation_axis.yaxis.grid(True)
 
 
-def set_labels_rotation(axes):
-    plt.setp(axes.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+def set_labels(day_night_axis, precipitation_axis):
+    set_labels_rotation(day_night_axis)
+    day_night_axis.set_ylabel(f"{LABEL_TEMP} ({DEG})")
+    # precipitation_axis.set_xlabel("Zeit")
+    precipitation_axis.set_ylabel(f"Niederschlag ({MM})")
 
 
-def set_y_axes(axes, secondary_axes):
-    axes.set_ylabel(f"{LABEL_TEMP} ({DEG})")
-    axes.yaxis.grid(True)
-    # secondary_axes.yaxis.grid(True)
-    secondary_axes.set_ylabel(f"Niederschlag ({MM})")
+def set_labels_rotation(day_night_axis):
+    plt.setp(day_night_axis.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
 
-def set_legend(axes, secondary_axes):
-    temp_legend = axes.legend(loc='upper left')
-    temp_legend.get_frame().set_alpha(ALPHA)
-    temp_legend.get_frame().set_zorder(np.inf)  # TODO hilft net :-(
-    precipitation_legend = secondary_axes.legend(loc='upper right')
-    precipitation_legend.get_frame().set_alpha(ALPHA)
+def set_legend(precipitation_axis, temperature_axis):
+    temp_legend = temperature_axis.legend(loc='upper left')
+    temp_legend.get_frame().set_alpha(ALPHA_LEGENDS)
+    precipitation_legend = precipitation_axis.legend(loc='upper right')
+    precipitation_legend.get_frame().set_alpha(ALPHA_LEGENDS)
+    precipitation_legend.get_frame().set_zorder(np.inf)  # TODO hilft net :-(
 
 
 def activate_tooltip(figure):
-    lines = [line for ax in figure.axes for line in ax.lines]
+    lines = [line for a in figure.axes for line in a.lines]
     cursor = mplcursors.cursor(lines, hover=True)
 
     @cursor.connect("add")
     def _(sel):
         text = sel.annotation._text.split('\n')
         time = f"{text[1].split('=')[1]} {text[3]}"
-        sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=np.inf)  # TODO is immer noch manchmal hinterm Regen
+        sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=np.inf)  # TODO is immer noch hinter der Temp
         sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
         labels = [line._label for line in sel.artist.axes.lines]
         if labels[0] in [LABEL_TEMP, LABEL_FEEL]:
@@ -130,7 +134,7 @@ def json_2_data_table(json):
                       RAIN: 0, SNOW: 0,
                       TEMP: json_line['main']['temp'],
                       FEELS_LIKE: json_line['main']['feels_like'],
-                      DAY_OR_NIGHT: json_line['sys']['pod']}
+                      DAY_NIGHT: json_line['sys']['pod']}
         if RAIN in json_line and THREE_HOURS in json_line[RAIN]:
             data_point[RAIN] = json_line[RAIN][THREE_HOURS]
         if SNOW in json_line and THREE_HOURS in json_line[SNOW]:
