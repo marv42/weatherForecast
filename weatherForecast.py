@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 import json
 import locale
@@ -30,6 +32,8 @@ DEG = "°C"
 MM = "mm"
 
 BASE_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric"
+CITY_DEFAULT = "Sankt Ingbert"
+WEATHER_FORECAST_PNG = "weatherForecast.png"
 
 
 def create_picture(data, city_name):
@@ -117,10 +121,10 @@ def activate_tooltip(figure):
     cursor = mplcursors.cursor(lines, hover=True)
 
     @cursor.connect("add")
-    def _(sel):
+    def _(sel):  # on_add
         text = sel.annotation._text.split('\n')
         time = f"{text[1].split('=')[1]} {text[3]}"
-        sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=np.inf)  # TODO is immer noch hinter der Temp
+        sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=np.inf)  # TODO is immer noch hinter der temperature_axis
         sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
         labels = [line._label for line in sel.artist.axes.lines]
         if labels[0] in [LABEL_TEMP, LABEL_FEEL]:
@@ -156,23 +160,27 @@ def get_data(city):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='get weather forecast data and display it')
-    parser.add_argument('--city', help='name of the city the weather forecast for which should be shown')
-    parser.add_argument('--save_pic', action='store_true', help='save the picture file (as png) instead of displaying it')
+    parser = argparse.ArgumentParser(description="get weather forecast data and display it")
+    parser.add_argument('--city', default=CITY_DEFAULT,
+                        help="name of the city the weather forecast for which should be shown (default: '%(default)s')")
+    parser.add_argument('--save_pic', action='append', nargs='?',
+                        help=f"save the picture file with the given name instead of displaying it (default: '{WEATHER_FORECAST_PNG}')")
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = parse_args()
     city_name = args.city
-    if not city_name:
-        city_name = "Sankt Ingbert"
     json = get_data(city_name)
     if json['cod'] != 200:
         print(f"Error: {json['message']}")
     data = json_2_data_table(json)
     plt = create_picture(data, city_name)
-    if args.save_pic:
-        plt.savefig("weatherForecast.png")
+    picture_file = args.save_pic
+    if picture_file:
+        picture_file = picture_file[0]
+        if not picture_file:
+            picture_file = WEATHER_FORECAST_PNG
+        plt.savefig(picture_file)
     else:
         plt.show()
