@@ -83,6 +83,7 @@ class WeatherForecast:
         day_night_bars = day_night_axis.bar(time, height, bottom=min_height, width=1, color='whitesmoke', zorder=0)
         temperature_axis.set_yticks([])  # TODO warum nich day_night_axis?
         # the order is relevant for the legends
+        precipitation_axis.plot(0, 1, 'white', visible=False)
         rain_line = precipitation_axis.plot(time, rain, 'blue', label="Regen", zorder=2.3)
         snow_line = None
         if any(s > 0 for s in snow):
@@ -91,21 +92,25 @@ class WeatherForecast:
         temp_line = temperature_axis.plot(time, temp, 'red', label=LABEL_TEMP, zorder=2.5)
         feels_like_line = temperature_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, zorder=2.4)
 
-    def get_height_array(self, day_or_night, height, min_height):
+    @staticmethod
+    def get_height_array(day_or_night, height, min_height):
         return [height if dn == 'n' else min_height for dn in day_or_night]
 
-    def set_mpl_params(self):
+    @staticmethod
+    def set_mpl_params():
         matplotlib.use('TkAgg')
         matplotlib.rcParams['toolbar'] = 'None'
 
-    def set_title(self, city_name):
+    @staticmethod
+    def set_title(city_name):
         plt.title(f"Wetter-Vorhersage für {city_name}")
 
     def set_axes(self, day_night_axis, precipitation_axis):
         self.set_ticks(day_night_axis)
         self.set_labels(day_night_axis, precipitation_axis)
 
-    def set_ticks(self, day_night_axis):
+    @staticmethod
+    def set_ticks(day_night_axis):
         day_night_axis.xaxis.set_major_locator(MultipleLocator(4))
         day_night_axis.xaxis.set_minor_locator(MultipleLocator(1))
         day_night_axis.yaxis.grid(True)
