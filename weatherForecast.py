@@ -18,7 +18,7 @@ if 'OPEN_WEATHER_MAP_API_KEY' in os.environ:
 else:
     from apiKey import API_KEY
 
-ALPHA_LEGENDS = 0.9
+ALPHA_LEGEND = 0.9
 TIME = 'time'
 RAIN = 'rain'
 SNOW = 'snow'
@@ -48,14 +48,14 @@ class WeatherForecast:
             print(f"Error: {json_data['message']}")
             exit(1)
         data = self.json_2_data_table(json_data)
-        picture = self.create_picture(data, self.city_name)
+        self.create_picture(data, self.city_name)
         if self.picture_file:
             self.picture_file = self.picture_file[0]
             if not self.picture_file:
                 self.picture_file = WEATHER_FORECAST_PNG
-            picture.savefig(self.picture_file)
+            plt.savefig(self.picture_file)
         else:
-            picture.show()
+            plt.show()
 
     def create_picture(self, data, city_name):
         self.set_mpl_params()
@@ -63,11 +63,10 @@ class WeatherForecast:
         self.set_title(city_name)
         precipitation_axis = day_night_axis.twinx()
         temperature_axis = day_night_axis.twinx()
-        self.draw_graphs(day_night_axis, precipitation_axis, temperature_axis, data)
+        graphs = self.draw_graphs(day_night_axis, precipitation_axis, temperature_axis, data)
         self.set_axes(day_night_axis, precipitation_axis)
-        self.set_legend(precipitation_axis, temperature_axis)
+        self.set_legend(graphs)
         self.activate_tooltip(figure)
-        return plt
 
     def draw_graphs(self, day_night_axis, precipitation_axis, temperature_axis, data):
         range_length = range(len(data))
@@ -80,7 +79,7 @@ class WeatherForecast:
 
         min_height = min(min(temp), 0)
         height = self.get_height_array(day_night, max(temp), min_height)
-        day_night_bars = day_night_axis.bar(time, height, bottom=min_height, width=1, color='whitesmoke', zorder=0)
+        day_night_axis.bar(time, height, bottom=min_height, width=1, color='whitesmoke', zorder=0)
         temperature_axis.set_yticks([])  # TODO warum nich day_night_axis?
         # the order is relevant for the legends
         precipitation_axis.plot(0, 1, 'white', visible=False)
@@ -91,6 +90,7 @@ class WeatherForecast:
         temperature_axis.plot(0, 0, 'white', visible=False)
         temp_line = temperature_axis.plot(time, temp, 'red', label=LABEL_TEMP, zorder=2.5)
         feels_like_line = temperature_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, zorder=2.4)
+        return [temp_line, feels_like_line, rain_line, snow_line]
 
     @staticmethod
     def get_height_array(day_or_night, height, min_height):
@@ -127,12 +127,13 @@ class WeatherForecast:
         plt.setp(day_night_axis.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
     @staticmethod
-    def set_legend(precipitation_axis, temperature_axis):
-        temp_legend = temperature_axis.legend(loc='upper left')
-        temp_legend.get_frame().set_alpha(ALPHA_LEGENDS)
-        precipitation_legend = precipitation_axis.legend(loc='upper right')
-        precipitation_legend.get_frame().set_alpha(ALPHA_LEGENDS)
-        precipitation_legend.get_frame().set_zorder(np.inf)  # TODO hilft net :-(
+    def set_legend(graphs):
+        handles = []
+        for g in graphs:
+            if g is not None:
+                handles.append(g[0])
+        legend = plt.legend(handles=handles)  # , loc='upper right')
+        legend.get_frame().set_alpha(ALPHA_LEGEND)
 
     @staticmethod
     def activate_tooltip(figure):
@@ -146,7 +147,7 @@ class WeatherForecast:
             sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=np.inf)  # TODO is immer noch hinter der temperature_axis
             sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
             labels = [line._label for line in sel.artist.axes.lines]
-            if labels[0] in [LABEL_TEMP, LABEL_FEEL]:
+            if labels[1] in [LABEL_TEMP, LABEL_FEEL]:
                 sel.annotation.set_text(f"{sel.target[1]:.1f} {DEG}\n{time}")
 
     def json_2_data_table(self, json):
