@@ -5,7 +5,9 @@ import json
 import locale
 import os
 from datetime import datetime
+# from io import BytesIO
 
+# import mpld3
 import numpy as np
 import requests
 import matplotlib
@@ -25,6 +27,7 @@ SNOW = 'snow'
 TEMP = 'temp'
 FEELS_LIKE = 'feels_like'
 DAY_NIGHT = 'day_night'
+MAIN = 'main'
 THREE_HOURS = '3h'
 LABEL_TEMP = "Temperatur"
 LABEL_FEEL = "gefühlt"
@@ -47,12 +50,15 @@ class WeatherForecast:
         if json_data['cod'] != '200':
             print(f"Error: {json_data['message']}")
             exit(1)
-        data = self.json_2_data_table(json_data)
-        self.create_picture(data, self.city_name)
+        data = self.json_2_data_table(json_data['list'])
+        figure = self.create_picture(data, json_data['city']['name'])
         if self.picture_file:
             self.picture_file = self.picture_file[0]
             if not self.picture_file:
                 self.picture_file = WEATHER_FORECAST_PNG
+            # if isinstance(self.picture_file, BytesIO):
+            #     mpld3.save_html(figure, self.picture_file)
+            # else:
             plt.savefig(self.picture_file)
         else:
             plt.show()
@@ -67,6 +73,7 @@ class WeatherForecast:
         self.set_axes(day_night_axis, precipitation_axis)
         self.set_legend(graphs)
         self.activate_tooltip(figure)
+        return figure
 
     def draw_graphs(self, day_night_axis, precipitation_axis, temperature_axis, data):
         range_length = range(len(data))
@@ -77,9 +84,9 @@ class WeatherForecast:
         snow = [data[i][SNOW] for i in range_length]
         day_night = [data[i][DAY_NIGHT] for i in range_length]
 
-        min_height = min(min(temp), 0)
-        height = self.get_height_array(day_night, max(temp), min_height)
-        day_night_axis.bar(time, height, bottom=min_height, width=1, color='whitesmoke', zorder=0)
+        min_temp = min(min(temp), 0)
+        height = self.get_height_array(day_night, max(temp) - min_temp)
+        day_night_axis.bar(time, height, bottom=min_temp, width=1, color='whitesmoke', zorder=0)
         temperature_axis.set_yticks([])  # TODO warum nich day_night_axis?
         # the order is relevant for the legends
         precipitation_axis.plot(0, 1, 'white', visible=False)
@@ -88,13 +95,13 @@ class WeatherForecast:
         if any(s > 0 for s in snow):
             snow_line = precipitation_axis.plot(time, snow, 'lightskyblue', label="Schnee", zorder=2.2)
         temperature_axis.plot(0, 0, 'white', visible=False)
-        temp_line = temperature_axis.plot(time, temp, 'red', label=LABEL_TEMP, zorder=2.5)
-        feels_like_line = temperature_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, zorder=2.4)
+        temp_line = day_night_axis.plot(time, temp, 'red', label=LABEL_TEMP, zorder=2.5)  # TODO warum nich temperature_axis?
+        feels_like_line = day_night_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, zorder=2.4)
         return [temp_line, feels_like_line, rain_line, snow_line]
 
     @staticmethod
-    def get_height_array(day_or_night, height, min_height):
-        return [height if dn == 'n' else min_height for dn in day_or_night]
+    def get_height_array(day_or_night, height):
+        return [height if dn == 'n' else 0 for dn in day_or_night]
 
     @staticmethod
     def set_mpl_params():
@@ -138,25 +145,25 @@ class WeatherForecast:
     @staticmethod
     def activate_tooltip(figure):
         lines = [line for a in figure.axes for line in a.lines]
-        cursor = mplcursors.cursor(lines, hover=True)
+        cursor = mplcursors.cursor(lines, hover=True)  # , annotation_kwargs={'zorder': np.inf})
 
         @cursor.connect("add")
         def _(sel):  # on_add
-            text = sel.annotation._text.split('\n')
+            text = sel.annotation.get_text().split('\n')
             time = f"{text[1].split('=')[1]} {text[3]}"
             sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=np.inf)  # TODO is immer noch hinter der temperature_axis
             sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
-            labels = [line._label for line in sel.artist.axes.lines]
+            labels = [line.get_label() for line in sel.artist.axes.lines]
             if labels[1] in [LABEL_TEMP, LABEL_FEEL]:
                 sel.annotation.set_text(f"{sel.target[1]:.1f} {DEG}\n{time}")
 
     def json_2_data_table(self, json):
         data = []
-        for json_line in json['list']:
+        for json_line in json:
             data_point = {TIME: self.reformat_time(json_line['dt_txt']),
                           RAIN: 0, SNOW: 0,
-                          TEMP: json_line['main']['temp'],
-                          FEELS_LIKE: json_line['main']['feels_like'],
+                          TEMP: json_line[MAIN]['temp'],
+                          FEELS_LIKE: json_line[MAIN]['feels_like'],
                           DAY_NIGHT: json_line['sys']['pod']}
             if RAIN in json_line and THREE_HOURS in json_line[RAIN]:
                 data_point[RAIN] = json_line[RAIN][THREE_HOURS]
@@ -176,6 +183,14 @@ class WeatherForecast:
         url = f"{BASE_URL}&appid={API_KEY}&q={city}"
         response = requests.get(url)
         return json.loads(response.text)
+        # return {"cod":"200","message":0,"cnt":4,"list":[
+        #     {"dt":1623931200,"main":{"temp":30,"feels_like":20},
+        #      "sys":{"pod":"d"},"dt_txt":"2021-06-17 12:00:00"},
+        #     {"dt":1623942000,"main":{"temp":0,"feels_like":20},
+        #      "sys":{"pod":"d"},"dt_txt":"2021-06-17 15:00:00"},
+        #     {"dt":1623952800,"main":{"temp":-10,"feels_like":20},
+        #      "sys":{"pod":"n"},"dt_txt":"2021-06-22 09:00:00"}],
+        #         "city":{"id":2841590,"name":"Sankt Ingbert"}}
 
 
 def parse_args():
