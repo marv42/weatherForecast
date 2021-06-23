@@ -7,13 +7,13 @@ import os
 from datetime import datetime
 # from io import BytesIO
 
-# import mpld3
 import numpy as np
 import requests
 import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
 import mplcursors
+# import mpld3
 
 if 'OPEN_WEATHER_MAP_API_KEY' in os.environ:
     API_KEY = os.environ['OPEN_WEATHER_MAP_API_KEY']
@@ -33,6 +33,9 @@ LABEL_TEMP = "Temperatur"
 LABEL_FEEL = "gefühlt"
 DEG = "°C"
 MM = "mm"
+COLOR_TEMP = 'red'
+COLOR_RAIN = 'blue'
+COLOR_INVISIBLE = 'white'
 
 BASE_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric"
 CITY_DEFAULT = "Sankt Ingbert"
@@ -57,8 +60,9 @@ class WeatherForecast:
             if not self.picture_file:
                 self.picture_file = WEATHER_FORECAST_PNG
             # if isinstance(self.picture_file, BytesIO):
-            #     mpld3.save_html(figure, self.picture_file)
-            # else:
+            #    # mpld3.save_html(figure, self.picture_file)  # https://github.com/mpld3/mpld3/issues/362
+            #    self.picture_file.write(mpld3.fig_to_html(figure).encode())
+            #else:
             plt.savefig(self.picture_file)
         else:
             plt.show()
@@ -89,13 +93,13 @@ class WeatherForecast:
         day_night_axis.bar(time, height, bottom=min_temp, width=1, color='whitesmoke', zorder=0)
         temperature_axis.set_yticks([])  # TODO warum nich day_night_axis?
         # the order is relevant for the legends
-        precipitation_axis.plot(0, 1, 'white', visible=False)
-        rain_line = precipitation_axis.plot(time, rain, 'blue', label="Regen", zorder=2.3)
+        precipitation_axis.plot(0, 1, COLOR_INVISIBLE, visible=False)  # damit wenig Regen nicht als viel erscheint
+        rain_line = precipitation_axis.plot(time, rain, COLOR_RAIN, label="Regen", zorder=2.3)  # TODO zorder wird nicht respektiert, ist immer noch über dem Temperatur-Plot
         snow_line = None
         if any(s > 0 for s in snow):
             snow_line = precipitation_axis.plot(time, snow, 'lightskyblue', label="Schnee", zorder=2.2)
-        temperature_axis.plot(0, 0, 'white', visible=False)
-        temp_line = day_night_axis.plot(time, temp, 'red', label=LABEL_TEMP, zorder=2.5)  # TODO warum nich temperature_axis?
+        temperature_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)
+        temp_line = day_night_axis.plot(time, temp, COLOR_TEMP, label=LABEL_TEMP, zorder=2.5)  # TODO warum nich temperature_axis?
         feels_like_line = day_night_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, zorder=2.4)
         return [temp_line, feels_like_line, rain_line, snow_line]
 
@@ -125,9 +129,11 @@ class WeatherForecast:
 
     def set_labels(self, day_night_axis, precipitation_axis):
         self.set_labels_rotation(day_night_axis)
-        day_night_axis.set_ylabel(f"{LABEL_TEMP} ({DEG})")
+        day_night_axis.set_ylabel(f"{LABEL_TEMP} ({DEG})", color=COLOR_TEMP)
+        day_night_axis.tick_params(axis='y', labelcolor=COLOR_TEMP)
         # precipitation_axis.set_xlabel("Zeit")
-        precipitation_axis.set_ylabel(f"Niederschlag ({MM})")
+        precipitation_axis.set_ylabel(f"Niederschlag ({MM})", color=COLOR_RAIN)
+        precipitation_axis.tick_params(axis='y', labelcolor=COLOR_RAIN)
 
     @staticmethod
     def set_labels_rotation(day_night_axis):
