@@ -6,6 +6,11 @@ import locale
 import os
 from datetime import datetime
 # from io import BytesIO
+from subprocess import Popen, PIPE
+
+activate_script = f'{os.path.dirname(__file__)}/venv/bin/activate'
+process = Popen([f'. {activate_script}'], shell=True, stdout=PIPE, stderr=PIPE)
+stdout, stderr = process.communicate()
 
 import requests
 import matplotlib
