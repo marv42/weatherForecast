@@ -93,8 +93,9 @@ class WeatherForecast:
         snow = [data[i][SNOW] for i in range_length]
         day_night = [data[i][DAY_NIGHT] for i in range_length]
 
-        min_temp = min(min(temp), 0)
-        height = self.get_height_array(day_night, max(temp) - min_temp)
+        min_temp = min(min(temp), min(feels_like), 0)
+        max_temp = max(max(temp), max(feels_like))
+        height = self.get_height_array(day_night, max_temp - min_temp)
         day_night_axis.bar(time, height, bottom=min_temp, width=1, color='whitesmoke', zorder=0)
         temperature_axis.set_yticks([])  # TODO warum nich day_night_axis?
         # the order is relevant for the legends
