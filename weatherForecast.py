@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import argparse
 import json
@@ -7,7 +7,6 @@ import os
 from datetime import datetime
 # from io import BytesIO
 
-import numpy as np
 import requests
 import matplotlib
 from matplotlib import pyplot as plt
@@ -21,6 +20,7 @@ else:
     from apiKey import API_KEY
 
 ALPHA_LEGEND = 0.9
+BIG_ZORDER = 999999
 TIME = 'time'
 RAIN = 'rain'
 SNOW = 'snow'
@@ -157,7 +157,7 @@ class WeatherForecast:
         def _(sel):  # on_add
             text = sel.annotation.get_text().split('\n')
             time = f"{text[1].split('=')[1]} {text[3]}"
-            sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=np.inf)  # TODO is immer noch hinter der temperature_axis
+            sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=BIG_ZORDER)  # TODO is immer noch hinter der temperature_axis, https://github.com/anntzer/mplcursors/issues/37
             sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
             labels = [line.get_label() for line in sel.artist.axes.lines]
             if labels[1] in [LABEL_TEMP, LABEL_FEEL]:
