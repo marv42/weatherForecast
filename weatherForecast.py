@@ -3,14 +3,17 @@
 import argparse
 import json
 import locale
+import logging
 import os
+import subprocess
 from datetime import datetime
 # from io import BytesIO
-from subprocess import Popen, PIPE
+from subprocess import PIPE
 
 activate_script = f'{os.path.dirname(__file__)}/venv/bin/activate'
-process = Popen([f'. {activate_script}'], shell=True, stdout=PIPE, stderr=PIPE)
-stdout, stderr = process.communicate()
+status = subprocess.run([f'. {activate_script}'], shell=True, stdout=PIPE, stderr=PIPE)
+if status.returncode != 0:
+    logging.warning(f"Activating virtual environment failed: {status.stderr}")
 
 import requests
 import matplotlib
