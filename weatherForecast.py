@@ -9,18 +9,17 @@ import subprocess
 from datetime import datetime
 # from io import BytesIO
 from subprocess import PIPE
-
-activate_script = f'{os.path.dirname(__file__)}/venv/bin/activate'
-status = subprocess.run([f'. {activate_script}'], shell=True, stdout=PIPE, stderr=PIPE)
-if status.returncode != 0:
-    logging.warning(f"Activating virtual environment failed: {status.stderr}")
-
 import requests
 import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
 import mplcursors
 # import mpld3
+
+activate_script = f'{os.path.dirname(__file__)}/venv/bin/activate'
+status = subprocess.run([f'. {activate_script}'], shell=True, stdout=PIPE, stderr=PIPE)
+if status.returncode != 0:
+    logging.warning(f"Activating virtual environment failed: {status.stderr}")
 
 if 'OPEN_WEATHER_MAP_API_KEY' in os.environ:
     API_KEY = os.environ['OPEN_WEATHER_MAP_API_KEY']
@@ -32,6 +31,7 @@ BIG_ZORDER = 999999
 TIME = 'time'
 RAIN = 'rain'
 SNOW = 'snow'
+WIND = 'wind'
 TEMP = 'temp'
 FEELS_LIKE = 'feels_like'
 DAY_NIGHT = 'day_night'
@@ -39,10 +39,13 @@ MAIN = 'main'
 THREE_HOURS = '3h'
 LABEL_TEMP = "Temperatur"
 LABEL_FEEL = "gefühlt"
+LABEL_WIND = "Wind"
 DEG = "°C"
 MM = "mm"
+MPS = "m/s"
 COLOR_TEMP = 'red'
 COLOR_RAIN = 'blue'
+COLOR_WIND = 'thistle'
 COLOR_INVISIBLE = 'white'
 
 BASE_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric"
@@ -77,76 +80,94 @@ class WeatherForecast:
 
     def create_picture(self, data, city_name):
         self.set_mpl_params()
-        figure, day_night_axis = plt.subplots(constrained_layout=True)
+        figure, ax = plt.subplots(constrained_layout=True)
+        wind_axis = ax.twinx()  # deepest axes -- drawing is done per axes, first ax first
+        precipitation_axis = ax.twinx()
+        temperature_axis = ax.twinx()
+        graphs = self.draw_graphs(ax, temperature_axis, precipitation_axis, wind_axis, data)
         self.set_title(city_name)
-        precipitation_axis = day_night_axis.twinx()
-        temperature_axis = day_night_axis.twinx()
-        graphs = self.draw_graphs(day_night_axis, precipitation_axis, temperature_axis, data)
-        self.set_axes(day_night_axis, precipitation_axis)
+        self.set_axes(ax, temperature_axis, precipitation_axis, wind_axis)
         self.set_legend(graphs)
         self.activate_tooltip(figure)
         return figure
-
-    def draw_graphs(self, day_night_axis, precipitation_axis, temperature_axis, data):
-        range_length = range(len(data))
-        time = [data[i][TIME] for i in range_length]
-        temp = [data[i][TEMP] for i in range_length]
-        feels_like = [data[i][FEELS_LIKE] for i in range_length]
-        rain = [data[i][RAIN] for i in range_length]
-        snow = [data[i][SNOW] for i in range_length]
-        day_night = [data[i][DAY_NIGHT] for i in range_length]
-
-        min_temp = min(min(temp), min(feels_like), 0)
-        max_temp = max(max(temp), max(feels_like))
-        height = self.get_height_array(day_night, max_temp - min_temp)
-        day_night_axis.bar(time, height, bottom=min_temp, width=1, color='whitesmoke', zorder=0)
-        temperature_axis.set_yticks([])  # TODO warum nich day_night_axis?
-        # the order is relevant for the legends
-        precipitation_axis.plot(0, 1, COLOR_INVISIBLE, visible=False)  # damit wenig Regen nicht als viel erscheint
-        rain_line = precipitation_axis.plot(time, rain, COLOR_RAIN, label="Regen", zorder=2.3)  # TODO zorder wird nicht respektiert, ist immer noch über dem Temperatur-Plot
-        snow_line = None
-        if any(s > 0 for s in snow):
-            snow_line = precipitation_axis.plot(time, snow, 'lightskyblue', label="Schnee", zorder=2.2)
-        temperature_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)
-        temp_line = day_night_axis.plot(time, temp, COLOR_TEMP, label=LABEL_TEMP, zorder=2.5)  # TODO warum nich temperature_axis?
-        feels_like_line = day_night_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, zorder=2.4)
-        return [temp_line, feels_like_line, rain_line, snow_line]
-
-    @staticmethod
-    def get_height_array(day_or_night, height):
-        return [height if dn == 'n' else 0 for dn in day_or_night]
 
     @staticmethod
     def set_mpl_params():
         matplotlib.use('TkAgg')
         matplotlib.rcParams['toolbar'] = 'None'
 
+    def draw_graphs(self, ax, temperature_axis, precipitation_axis, wind_axis, data):
+        range_length = range(len(data))
+        time = [data[i][TIME] for i in range_length]
+        temp = [data[i][TEMP] for i in range_length]
+        feels_like = [data[i][FEELS_LIKE] for i in range_length]
+        rain = [data[i][RAIN] for i in range_length]
+        snow = [data[i][SNOW] for i in range_length]
+        wind = [data[i][WIND] for i in range_length]
+        day_night = [data[i][DAY_NIGHT] for i in range_length]
+
+        self.plot_invisible(temperature_axis, precipitation_axis, wind_axis)
+        self.plot_day_night(ax, time, day_night, temp, feels_like)
+        temp_line = temperature_axis.plot(time, temp, COLOR_TEMP, label=LABEL_TEMP, linewidth=2)
+        feels_like_line = temperature_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, linewidth=2)
+        rain_line = precipitation_axis.plot(time, rain, COLOR_RAIN, label="Regen")
+        snow_line = self.plot_snow_line(precipitation_axis, time, snow)
+        wind_line = wind_axis.plot(time, wind, COLOR_WIND, label=LABEL_WIND)
+        return [temp_line, feels_like_line, rain_line, snow_line, wind_line]
+
+    @staticmethod
+    def plot_invisible(temperature_axis, precipitation_axis, wind_axis):
+        temperature_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)  # 0 as reference
+        precipitation_axis.plot(0, 1, COLOR_INVISIBLE, visible=False)  # little rain to not appear as much
+        wind_axis.plot(0, 5, COLOR_INVISIBLE, visible=False)
+
+    def plot_day_night(self, ax, time, day_night, temp, feels_like):
+        min_temp = min(min(temp), min(feels_like), 0)
+        max_temp = max(max(temp), max(feels_like))
+        height = self.get_height_array(day_night, max_temp - min_temp)
+        ax.bar(time, height, bottom=min_temp, width=1, color='whitesmoke', zorder=0)
+
+    @staticmethod
+    def get_height_array(day_or_night, height):
+        return [height if dn == 'n' else 0 for dn in day_or_night]
+
+    @staticmethod
+    def plot_snow_line(precipitation_axis, time, snow):
+        snow_line = None
+        if any(s > 0 for s in snow):
+            snow_line = precipitation_axis.plot(time, snow, 'lightskyblue', label="Schnee")
+        return snow_line
+
     @staticmethod
     def set_title(city_name):
         plt.title(f"Wetter-Vorhersage für {city_name}")
 
-    def set_axes(self, day_night_axis, precipitation_axis):
-        self.set_ticks(day_night_axis)
-        self.set_labels(day_night_axis, precipitation_axis)
-
-    @staticmethod
-    def set_ticks(day_night_axis):
-        day_night_axis.xaxis.set_major_locator(MultipleLocator(4))
-        day_night_axis.xaxis.set_minor_locator(MultipleLocator(1))
-        day_night_axis.yaxis.grid(True)
+    def set_axes(self, ax, temperature_axis, precipitation_axis, wind_axis):
+        self.set_ticks(ax, temperature_axis, precipitation_axis, wind_axis)
+        self.set_labels(ax, precipitation_axis, wind_axis)
+        wind_axis.spines.right.set_position(('axes', 1.15))
+        ax.yaxis.grid(True)
         # precipitation_axis.yaxis.grid(True)
 
-    def set_labels(self, day_night_axis, precipitation_axis):
-        self.set_labels_rotation(day_night_axis)
-        day_night_axis.set_ylabel(f"{LABEL_TEMP} ({DEG})", color=COLOR_TEMP)
-        day_night_axis.tick_params(axis='y', labelcolor=COLOR_TEMP)
+    @staticmethod
+    def set_ticks(ax, temperature_axis, precipitation_axis, wind_axis):
+        ax.xaxis.set_major_locator(MultipleLocator(4))
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        temperature_axis.set_yticks([])
+        ax.tick_params(axis='y', labelcolor=COLOR_TEMP)
+        precipitation_axis.tick_params(axis='y', labelcolor=COLOR_RAIN)
+        wind_axis.tick_params(axis='y', labelcolor=COLOR_WIND)
+
+    def set_labels(self, ax, precipitation_axis, wind_axis):
+        self.set_labels_rotation(ax)
+        ax.set_ylabel(f"{LABEL_TEMP} ({DEG})", color=COLOR_TEMP)
         # precipitation_axis.set_xlabel("Zeit")
         precipitation_axis.set_ylabel(f"Niederschlag ({MM})", color=COLOR_RAIN)
-        precipitation_axis.tick_params(axis='y', labelcolor=COLOR_RAIN)
+        wind_axis.set_ylabel(f"{LABEL_WIND} ({MPS})", color=COLOR_WIND)
 
     @staticmethod
-    def set_labels_rotation(day_night_axis):
-        plt.setp(day_night_axis.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+    def set_labels_rotation(ax):
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
     @staticmethod
     def set_legend(graphs):
@@ -154,23 +175,25 @@ class WeatherForecast:
         for g in graphs:
             if g is not None:
                 handles.append(g[0])
-        legend = plt.legend(handles=handles)  # , loc='upper right')
+        legend = plt.legend(handles=handles, loc='upper right')
         legend.get_frame().set_alpha(ALPHA_LEGEND)
 
     @staticmethod
     def activate_tooltip(figure):
-        lines = [line for a in figure.axes for line in a.lines]
+        lines = [line for ax in figure.axes for line in ax.lines]
         cursor = mplcursors.cursor(lines, hover=True)  # , annotation_kwargs={'zorder': np.inf})
 
         @cursor.connect("add")
         def _(sel):  # on_add
             text = sel.annotation.get_text().split('\n')
             time = f"{text[1].split('=')[1]} {text[3]}"
-            sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=BIG_ZORDER)  # TODO is immer noch hinter der temperature_axis, https://github.com/anntzer/mplcursors/issues/37
+            sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=BIG_ZORDER)
             sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
             labels = [line.get_label() for line in sel.artist.axes.lines]
             if labels[1] in [LABEL_TEMP, LABEL_FEEL]:
                 sel.annotation.set_text(f"{sel.target[1]:.1f} {DEG}\n{time}")
+            if labels[1] in [LABEL_WIND]:
+                sel.annotation.set_text(f"{sel.target[1]:.1f} {MPS}\n{time}")
 
     def json_2_data_table(self, json):
         data = []
@@ -179,6 +202,7 @@ class WeatherForecast:
                           RAIN: 0, SNOW: 0,
                           TEMP: json_line[MAIN]['temp'],
                           FEELS_LIKE: json_line[MAIN]['feels_like'],
+                          WIND: json_line[WIND]['speed'],
                           DAY_NIGHT: json_line['sys']['pod']}
             if RAIN in json_line and THREE_HOURS in json_line[RAIN]:
                 data_point[RAIN] = json_line[RAIN][THREE_HOURS]
