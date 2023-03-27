@@ -6,15 +6,23 @@ import locale
 import logging
 import os
 import subprocess
+import urllib
+from urllib import request
+from urllib.error import URLError
 from datetime import datetime
-# from io import BytesIO
 from subprocess import PIPE
+import PIL
+from PIL import Image
 import requests
 import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import mplcursors
+# from io import BytesIO
 # import mpld3
+
+from weatherIcons import openWeatherMapIconId_2_Icons8Name
 
 activate_script = f'{os.path.dirname(__file__)}/venv/bin/activate'
 status = subprocess.run([f'. {activate_script}'], shell=True, stdout=PIPE, stderr=PIPE)
@@ -27,7 +35,7 @@ else:
     from apiKey import API_KEY
 
 ALPHA_LEGEND = 0.9
-BIG_ZORDER = 999999
+BIG_Z_ORDER = 999999
 TIME = 'time'
 RAIN = 'rain'
 SNOW = 'snow'
@@ -35,6 +43,7 @@ WIND = 'wind'
 TEMP = 'temp'
 FEELS_LIKE = 'feels_like'
 DAY_NIGHT = 'day_night'
+ICON = 'icon'
 MAIN = 'main'
 THREE_HOURS = '3h'
 LABEL_TEMP = "Temperatur"
@@ -105,9 +114,13 @@ class WeatherForecast:
         snow = [data[i][SNOW] for i in range_length]
         wind = [data[i][WIND] for i in range_length]
         day_night = [data[i][DAY_NIGHT] for i in range_length]
+        icons = [data[i][ICON] for i in range_length]
+        min_temp = min(min(temp), min(feels_like), 0)
+        max_temp = max(max(temp), max(feels_like))
 
+        self.draw_icons(ax, time, icons, min_temp, max_temp)
         self.plot_invisible(temperature_axis, precipitation_axis, wind_axis)
-        self.plot_day_night(ax, time, day_night, temp, feels_like)
+        self.plot_day_night(ax, time, day_night, min_temp, max_temp)
         temp_line = temperature_axis.plot(time, temp, COLOR_TEMP, label=LABEL_TEMP, linewidth=2)
         feels_like_line = temperature_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, linewidth=2)
         rain_line = precipitation_axis.plot(time, rain, COLOR_RAIN, label="Regen")
@@ -116,14 +129,28 @@ class WeatherForecast:
         return [temp_line, feels_like_line, rain_line, snow_line, wind_line]
 
     @staticmethod
+    def draw_icons(ax, time, icons, min_temp, max_temp):
+        offset = [0 if n % 2 == 0 else 1 for n in range(len(time))]
+        for t, i, o in zip(time, icons, offset):
+            url = f"https://img.icons8.com/{openWeatherMapIconId_2_Icons8Name[i]}.png"
+            try:
+                icon = urllib.request.urlopen(url)
+                # icon = IconCache(url).get_icon  # urllib.request scheint einen Cache zu haben
+                image_file = PIL.Image.open(icon)
+                image = OffsetImage(image_file, zoom=0.6, alpha=0.3)
+                box = AnnotationBbox(image, (t, min_temp + 0.95 * (max_temp - min_temp) - o),
+                                     bboxprops=dict(edgecolor='white', alpha=0))
+                ax.add_artist(box)
+            except URLError:
+                continue
+
+    @staticmethod
     def plot_invisible(temperature_axis, precipitation_axis, wind_axis):
         temperature_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)  # 0 as reference
-        precipitation_axis.plot(0, 1, COLOR_INVISIBLE, visible=False)  # little rain to not appear as much
-        wind_axis.plot(0, 5, COLOR_INVISIBLE, visible=False)
+        precipitation_axis.plot(0, 5, COLOR_INVISIBLE, visible=False)  # little rain to not appear as much
+        wind_axis.plot(0, 10, COLOR_INVISIBLE, visible=False)
 
-    def plot_day_night(self, ax, time, day_night, temp, feels_like):
-        min_temp = min(min(temp), min(feels_like), 0)
-        max_temp = max(max(temp), max(feels_like))
+    def plot_day_night(self, ax, time, day_night, min_temp, max_temp):
         height = self.get_height_array(day_night, max_temp - min_temp)
         ax.bar(time, height, bottom=min_temp, width=1, color='whitesmoke', zorder=0)
 
@@ -187,7 +214,7 @@ class WeatherForecast:
         def _(sel):  # on_add
             text = sel.annotation.get_text().split('\n')
             time = f"{text[1].split('=')[1]} {text[3]}"
-            sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=BIG_ZORDER)
+            sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=BIG_Z_ORDER)
             sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
             labels = [line.get_label() for line in sel.artist.axes.lines]
             if labels[1] in [LABEL_TEMP, LABEL_FEEL]:
@@ -203,7 +230,8 @@ class WeatherForecast:
                           TEMP: json_line[MAIN]['temp'],
                           FEELS_LIKE: json_line[MAIN]['feels_like'],
                           WIND: json_line[WIND]['speed'],
-                          DAY_NIGHT: json_line['sys']['pod']}
+                          DAY_NIGHT: json_line['sys']['pod'],
+                          ICON: json_line['weather'][0]['icon']}
             if RAIN in json_line and THREE_HOURS in json_line[RAIN]:
                 data_point[RAIN] = json_line[RAIN][THREE_HOURS]
             if SNOW in json_line and THREE_HOURS in json_line[SNOW]:

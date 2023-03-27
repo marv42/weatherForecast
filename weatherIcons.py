@@ -1,0 +1,20 @@
+openWeatherMapIconId_2_Icons8Name = {
+    '01d': 'material-outlined/1x/sun',
+    '01n': 'material-outlined/1x/bright-moon',
+    '02d': 'material-outlined/1x/partly-cloudy-day',
+    '02n': 'material-outlined/1x/partly-cloudy-night',
+    '03d': 'material-outlined/1x/cloud',
+    '03n': 'material-outlined/1x/cloud',
+    '04d': 'material-outlined/1x/cloud--v2',
+    '04n': 'material-outlined/1x/cloud--v2',
+    '09d': 'material-outlined/1x/rain',
+    '09n': 'material-outlined/1x/rain',
+    '10d': 'material/1x/downpour',
+    '10n': 'material/1x/downpour',
+    '11d': 'material-outlined/1x/storm',
+    '11n': 'material-outlined/1x/storm',
+    '13d': 'material-outlined/1x/winter',
+    '13n': 'material-outlined/1x/winter',
+    '50d': 'material/1x/fog-day',
+    '50n': 'material/1x/fog-night'
+}
