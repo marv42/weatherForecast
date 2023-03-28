@@ -147,7 +147,9 @@ class WeatherForecast:
     @staticmethod
     def plot_invisible(temperature_axis, precipitation_axis, wind_axis):
         temperature_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)  # 0 as reference
+        precipitation_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)
         precipitation_axis.plot(0, 5, COLOR_INVISIBLE, visible=False)  # little rain to not appear as much
+        wind_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)
         wind_axis.plot(0, 10, COLOR_INVISIBLE, visible=False)
 
     def plot_day_night(self, ax, time, day_night, min_temp, max_temp):
