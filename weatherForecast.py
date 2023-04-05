@@ -6,13 +6,9 @@ import locale
 import logging
 import os
 import subprocess
-import urllib
-from urllib import request
 from urllib.error import URLError
 from datetime import datetime
 from subprocess import PIPE
-import PIL
-from PIL import Image
 import requests
 import matplotlib
 from matplotlib import pyplot as plt
@@ -23,6 +19,7 @@ import mplcursors
 # import mpld3
 
 from weatherIcons import openWeatherMapIconId_2_Icons8Name
+from IconCache import IconCache
 
 activate_script = f'{os.path.dirname(__file__)}/venv/bin/activate'
 status = subprocess.run([f'. {activate_script}'], shell=True, stdout=PIPE, stderr=PIPE)
@@ -134,9 +131,7 @@ class WeatherForecast:
         for t, i, o in zip(time, icons, offset):
             url = f"https://img.icons8.com/{openWeatherMapIconId_2_Icons8Name[i]}.png"
             try:
-                icon = urllib.request.urlopen(url)
-                # icon = IconCache(url).get_icon  # urllib.request scheint einen Cache zu haben
-                image_file = PIL.Image.open(icon)
+                image_file = IconCache(url).get_icon
                 image = OffsetImage(image_file, zoom=0.6, alpha=0.3)
                 box = AnnotationBbox(image, (t, min_temp + 0.95 * (max_temp - min_temp) - o),
                                      bboxprops=dict(edgecolor='white', alpha=0))
@@ -148,7 +143,7 @@ class WeatherForecast:
     def plot_invisible(temperature_axis, precipitation_axis, wind_axis):
         temperature_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)  # 0 as reference
         precipitation_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)
-        precipitation_axis.plot(0, 5, COLOR_INVISIBLE, visible=False)  # little rain to not appear as much
+        precipitation_axis.plot(0, 8, COLOR_INVISIBLE, visible=False)  # little rain to not appear as much
         wind_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)
         wind_axis.plot(0, 10, COLOR_INVISIBLE, visible=False)
 

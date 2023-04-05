@@ -1,5 +1,7 @@
 import urllib
 from urllib import request
+import PIL
+from PIL import Image
 
 
 # https://docs.python.org/3/howto/descriptor.html#dynamic-lookups
@@ -12,7 +14,8 @@ class Cache:
         try:
             return self.cache[url]
         except KeyError:
-            self.cache[url] = value = urllib.request.urlopen(url)
+            icon = urllib.request.urlopen(url)
+            self.cache[url] = value = PIL.Image.open(icon)
             return value
         except TypeError:
             return urllib.request.urlopen(url)
