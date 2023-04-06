@@ -1,5 +1,7 @@
 import urllib
 from urllib import request
+from urllib.error import URLError
+
 import PIL
 from PIL import Image
 
@@ -14,9 +16,12 @@ class Cache:
         try:
             return self.cache[url]
         except KeyError:
-            icon = urllib.request.urlopen(url)
-            self.cache[url] = value = PIL.Image.open(icon)
-            return value
+            try:
+                icon = urllib.request.urlopen(url)
+                self.cache[url] = value = PIL.Image.open(icon)
+                return value
+            except URLError:
+                return None
         except TypeError:
             return urllib.request.urlopen(url)
 

@@ -6,7 +6,6 @@ import locale
 import logging
 import os
 import subprocess
-from urllib.error import URLError
 from datetime import datetime
 from subprocess import PIPE
 import requests
@@ -130,20 +129,19 @@ class WeatherForecast:
         offset = [0 if n % 2 == 0 else 1 for n in range(len(time))]
         for t, i, o in zip(time, icons, offset):
             url = f"https://img.icons8.com/{openWeatherMapIconId_2_Icons8Name[i]}.png"
-            try:
-                image_file = IconCache(url).get_icon
-                image = OffsetImage(image_file, zoom=0.6, alpha=0.3)
-                box = AnnotationBbox(image, (t, min_temp + 0.95 * (max_temp - min_temp) - o),
-                                     bboxprops=dict(edgecolor='white', alpha=0))
-                ax.add_artist(box)
-            except URLError:
+            image_file = IconCache(url).get_icon
+            if image_file is None:
                 continue
+            image = OffsetImage(image_file, zoom=0.6, alpha=0.3)
+            box = AnnotationBbox(image, (t, min_temp + 0.95 * (max_temp - min_temp) - o),
+                                 bboxprops=dict(edgecolor='white', alpha=0))
+            ax.add_artist(box)
 
     @staticmethod
     def plot_invisible(temperature_axis, precipitation_axis, wind_axis):
         temperature_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)  # 0 as reference
         precipitation_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)
-        precipitation_axis.plot(0, 8, COLOR_INVISIBLE, visible=False)  # little rain to not appear as much
+        precipitation_axis.plot(0, 10, COLOR_INVISIBLE, visible=False)  # little rain to not appear as much
         wind_axis.plot(0, 0, COLOR_INVISIBLE, visible=False)
         wind_axis.plot(0, 10, COLOR_INVISIBLE, visible=False)
 
