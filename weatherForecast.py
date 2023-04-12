@@ -78,7 +78,7 @@ class WeatherForecast:
             # if isinstance(self.picture_file, BytesIO):
             #    # mpld3.save_html(figure, self.picture_file)  # https://github.com/mpld3/mpld3/issues/362
             #    self.picture_file.write(mpld3.fig_to_html(figure).encode())
-            #else:
+            # else:
             plt.savefig(self.picture_file)
         else:
             plt.show()
@@ -117,7 +117,7 @@ class WeatherForecast:
         self.draw_icons(ax, time, icons, min_temp, max_temp)
         self.plot_invisible(temperature_axis, precipitation_axis, wind_axis)
         self.plot_day_night(ax, time, day_night, min_temp, max_temp)
-        temp_line = temperature_axis.plot(time, temp, COLOR_TEMP, label=LABEL_TEMP, linewidth=2)
+        temp_line = temperature_axis.plot(time, temp, COLOR_TEMP, label=LABEL_TEMP, linewidth=2, zorder=2.5)
         feels_like_line = temperature_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, linewidth=2)
         rain_line = precipitation_axis.plot(time, rain, COLOR_RAIN, label="Regen")
         snow_line = self.plot_snow_line(precipitation_axis, time, snow)
