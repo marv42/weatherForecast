@@ -94,6 +94,7 @@ class WeatherForecast:
     def create_picture(self, data, city_name):
         self.set_mpl_params()
         figure, ax = plt.subplots(constrained_layout=True)
+        ax.use_sticky_edges = False
         wind_axis = ax.twinx()  # deepest axes -- drawing is done per axes, first ax first
         precipitation_axis = ax.twinx()
         temperature_axis = ax.twinx()
