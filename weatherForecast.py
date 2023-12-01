@@ -45,13 +45,21 @@ THREE_HOURS = '3h'
 LABEL_TEMP = "Temperatur"
 LABEL_FEEL = "gefühlt"
 LABEL_WIND = "Wind"
+LABEL_SNOW = "Schnee"
+LABEL_PRECIPITATION = "Niederschlag"
+LABEL_RAIN = "Regen"
 DEG = "°C"
 MM = "mm"
 MPS = "m/s"
 COLOR_TEMP = 'red'
+COLOR_TEMP_0 = 'black'
+COLOR_FEELS_LIKE = 'lightsalmon'
 COLOR_RAIN = 'blue'
+COLOR_SNOW = 'lightskyblue'
 COLOR_WIND = 'thistle'
+COLOR_NIGHT = 'whitesmoke'
 COLOR_INVISIBLE = 'white'
+COLOR_ANNOTATION_BOX = 'white'
 
 BASE_URL = "https://api.openweathermap.org/data/2.5/forecast?units=metric"
 CITY_DEFAULT = "Sankt Ingbert"
@@ -118,8 +126,9 @@ class WeatherForecast:
         self.plot_invisible(temperature_axis, precipitation_axis, wind_axis)
         self.plot_day_night(ax, time, day_night, min_temp, max_temp)
         temp_line = temperature_axis.plot(time, temp, COLOR_TEMP, label=LABEL_TEMP, linewidth=2, zorder=2.5)
-        feels_like_line = temperature_axis.plot(time, feels_like, 'lightsalmon', label=LABEL_FEEL, linewidth=2)
-        rain_line = precipitation_axis.plot(time, rain, COLOR_RAIN, label="Regen")
+        temperature_axis.plot(time, [0] * len(data), COLOR_TEMP_0)
+        feels_like_line = temperature_axis.plot(time, feels_like, COLOR_FEELS_LIKE, label=LABEL_FEEL, linewidth=2)
+        rain_line = precipitation_axis.plot(time, rain, COLOR_RAIN, label=LABEL_RAIN)
         snow_line = self.plot_snow_line(precipitation_axis, time, snow)
         wind_line = wind_axis.plot(time, wind, COLOR_WIND, label=LABEL_WIND)
         return [temp_line, feels_like_line, rain_line, snow_line, wind_line]
@@ -134,7 +143,7 @@ class WeatherForecast:
                 continue
             image = OffsetImage(image_file, zoom=0.6, alpha=0.3)
             box = AnnotationBbox(image, (t, min_temp + 0.95 * (max_temp - min_temp) - o),
-                                 bboxprops=dict(edgecolor='white', alpha=0))
+                                 bboxprops=dict(edgecolor=COLOR_ANNOTATION_BOX, alpha=0))
             ax.add_artist(box)
 
     @staticmethod
@@ -147,7 +156,7 @@ class WeatherForecast:
 
     def plot_day_night(self, ax, time, day_night, min_temp, max_temp):
         height = self.get_height_array(day_night, max_temp - min_temp)
-        ax.bar(time, height, bottom=min_temp, width=1, color='whitesmoke', zorder=0)
+        ax.bar(time, height, bottom=min_temp, width=1, color=COLOR_NIGHT, zorder=0)
 
     @staticmethod
     def get_height_array(day_or_night, height):
@@ -157,7 +166,7 @@ class WeatherForecast:
     def plot_snow_line(precipitation_axis, time, snow):
         snow_line = None
         if any(s > 0 for s in snow):
-            snow_line = precipitation_axis.plot(time, snow, 'lightskyblue', label="Schnee")
+            snow_line = precipitation_axis.plot(time, snow, COLOR_SNOW, label=LABEL_SNOW)
         return snow_line
 
     @staticmethod
@@ -176,7 +185,8 @@ class WeatherForecast:
         ax.xaxis.set_major_locator(MultipleLocator(4))
         ax.xaxis.set_minor_locator(MultipleLocator(1))
         temperature_axis.set_yticks([])
-        ax.tick_params(axis='y', labelcolor=COLOR_TEMP)
+        temperature_axis.set_ylim(ax.get_ylim())  # avoid offset, cf. https://stackoverflow.com/a/21978168/542235
+        ax.tick_params(axis='y', labelcolor=COLOR_TEMP)  # TODO Why not temperature_axis?
         precipitation_axis.tick_params(axis='y', labelcolor=COLOR_RAIN)
         wind_axis.tick_params(axis='y', labelcolor=COLOR_WIND)
 
@@ -184,7 +194,7 @@ class WeatherForecast:
         self.set_labels_rotation(ax)
         ax.set_ylabel(f"{LABEL_TEMP} ({DEG})", color=COLOR_TEMP)
         # precipitation_axis.set_xlabel("Zeit")
-        precipitation_axis.set_ylabel(f"Niederschlag ({MM})", color=COLOR_RAIN)
+        precipitation_axis.set_ylabel(f"{LABEL_PRECIPITATION} ({MM})", color=COLOR_RAIN)
         wind_axis.set_ylabel(f"{LABEL_WIND} ({MPS})", color=COLOR_WIND)
 
     @staticmethod
@@ -206,10 +216,13 @@ class WeatherForecast:
         cursor = mplcursors.cursor(lines, hover=True)  # , annotation_kwargs={'zorder': np.inf})
 
         @cursor.connect("add")
-        def _(sel):  # on_add
+        def on_add(sel):
             text = sel.annotation.get_text().split('\n')
+            if not text[1].startswith('x='):
+                sel.target.shape = 0  # TODO Do this without exceptions
+                return
             time = f"{text[1].split('=')[1]} {text[3]}"
-            sel.annotation.get_bbox_patch().set(fc="white", alpha=1, zorder=BIG_Z_ORDER)
+            sel.annotation.get_bbox_patch().set(fc=COLOR_ANNOTATION_BOX, alpha=1, zorder=BIG_Z_ORDER)
             sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
             labels = [line.get_label() for line in sel.artist.axes.lines]
             if labels[1] in [LABEL_TEMP, LABEL_FEEL]:
