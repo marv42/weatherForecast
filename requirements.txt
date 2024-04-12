@@ -4,7 +4,7 @@ charset-normalizer==3.3.2
 contourpy==1.2.0
 cycler==0.12.1
 fonttools==4.45.1
-idna==3.6
+idna==3.7
 kiwisolver==1.4.5
 matplotlib==3.8.2
 mplcursors==0.5.2
