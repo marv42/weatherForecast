@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import mplcursors
+import tkinter as tk
 # from io import BytesIO
 # import mpld3
 
@@ -122,7 +123,6 @@ class WeatherForecast:
         icons = [data[i][ICON] for i in range_length]
         min_temp = min(min(temp), min(feels_like), 0)
         max_temp = max(max(temp), max(feels_like))
-
         self.draw_icons(ax, time, icons, min_temp, max_temp)
         self.plot_invisible(temperature_axis, precipitation_axis, wind_axis)
         self.plot_day_night(ax, time, day_night, min_temp, max_temp)
@@ -222,7 +222,7 @@ class WeatherForecast:
             if not text[1].startswith('x='):
                 sel.target.shape = 0  # TODO Do this without exceptions
                 return
-            time = f"{text[1].split('=')[1]} {text[3]}"
+            time = f"{text[1].split('=')[1].split(" ")[2]}"
             sel.annotation.get_bbox_patch().set(fc=COLOR_ANNOTATION_BOX, alpha=1, zorder=BIG_Z_ORDER)
             sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
             labels = [line.get_label() for line in sel.artist.axes.lines]
@@ -234,7 +234,7 @@ class WeatherForecast:
     def json_2_data_table(self, json):
         data = []
         for json_line in json:
-            data_point = {TIME: self.reformat_time(json_line['dt_txt']),
+            data_point = {TIME: self.reformat_time(json_line['dt_txt']),  # TODO Reformat later and use exact values for tooltip
                           RAIN: 0, SNOW: 0,
                           TEMP: json_line[MAIN]['temp'],
                           FEELS_LIKE: json_line[MAIN]['feels_like'],
@@ -279,6 +279,13 @@ def parse_args():
 
 
 if __name__ == '__main__':
+
+    # avoid stacktrace in debug output
+    def report_callback_exception(self, exc, val, tb):
+        # logging.warning(f"tkinter callback exception: {exc}")
+        pass
+
+    tk.Tk.report_callback_exception = report_callback_exception
     args = parse_args()
     city_name = args.city
     picture_file = args.save_pic
