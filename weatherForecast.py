@@ -113,7 +113,7 @@ class WeatherForecast:
 
     def draw_graphs(self, ax, temperature_axis, precipitation_axis, wind_axis, data):
         range_length = range(len(data))
-        time = [data[i][TIME] for i in range_length]
+        time = [self.reformat_time(data[i][TIME]) for i in range_length]
         temp = [data[i][TEMP] for i in range_length]
         feels_like = [data[i][FEELS_LIKE] for i in range_length]
         rain = [data[i][RAIN] for i in range_length]
@@ -234,7 +234,7 @@ class WeatherForecast:
     def json_2_data_table(self, json):
         data = []
         for json_line in json:
-            data_point = {TIME: self.reformat_time(json_line['dt_txt']),  # TODO Reformat later and use exact values for tooltip
+            data_point = {TIME: json_line['dt'],
                           RAIN: 0, SNOW: 0,
                           TEMP: json_line[MAIN]['temp'],
                           FEELS_LIKE: json_line[MAIN]['feels_like'],
@@ -251,7 +251,7 @@ class WeatherForecast:
     @staticmethod
     def reformat_time(in_date):
         locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
-        date_time = datetime.strptime(in_date, "%Y-%m-%d %H:%M:%S")
+        date_time = datetime.fromtimestamp(in_date)
         return date_time.strftime("%a %d.%m. %H:%M")
 
     @staticmethod
