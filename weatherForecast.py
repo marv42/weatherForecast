@@ -72,14 +72,15 @@ class WeatherForecast:
     def __init__(self, city_name, picture_file):
         self.city_name = city_name
         self.picture_file = picture_file
+        self.data = None
 
     def run(self):
         json_data = self.get_data(self.city_name)
         if json_data['cod'] != '200':
             print(f"Error: {json_data['message']}")
             exit(1)
-        data = self.json_2_data_table(json_data['list'])
-        figure = self.create_picture(data, json_data['city']['name'])
+        self.json_2_data_table(json_data['list'])
+        figure = self.create_picture(json_data['city']['name'])
         if self.picture_file:
             self.picture_file = self.picture_file[0]
             if not self.picture_file:
@@ -92,14 +93,14 @@ class WeatherForecast:
         else:
             plt.show()
 
-    def create_picture(self, data, city_name):
+    def create_picture(self, city_name):
         self.set_mpl_params()
         figure, ax = plt.subplots(constrained_layout=True)
         ax.use_sticky_edges = False
         wind_axis = ax.twinx()  # deepest axes -- drawing is done per axes, first ax first
         precipitation_axis = ax.twinx()
         temperature_axis = ax.twinx()
-        graphs = self.draw_graphs(ax, temperature_axis, precipitation_axis, wind_axis, data)
+        graphs = self.draw_graphs(ax, temperature_axis, precipitation_axis, wind_axis)
         self.set_title(city_name)
         self.set_axes(ax, temperature_axis, precipitation_axis, wind_axis)
         self.set_legend(graphs)
@@ -111,7 +112,8 @@ class WeatherForecast:
         matplotlib.use('TkAgg')
         matplotlib.rcParams['toolbar'] = 'None'
 
-    def draw_graphs(self, ax, temperature_axis, precipitation_axis, wind_axis, data):
+    def draw_graphs(self, ax, temperature_axis, precipitation_axis, wind_axis):
+        data = self.data
         range_length = range(len(data))
         time = [self.reformat_time(data[i][TIME]) for i in range_length]
         temp = [data[i][TEMP] for i in range_length]
@@ -211,8 +213,7 @@ class WeatherForecast:
         legend = plt.legend(handles=handles, loc='upper right')
         legend.get_frame().set_alpha(ALPHA_LEGEND)
 
-    @staticmethod
-    def activate_tooltip(figure):
+    def activate_tooltip(self, figure):
         lines = [line for ax in figure.axes for line in ax.lines]
         cursor = mplcursors.cursor(lines, hover=True)  # , annotation_kwargs={'zorder': np.inf})
 
@@ -222,7 +223,10 @@ class WeatherForecast:
             if not text[1].startswith('x='):
                 sel.target.shape = 0  # TODO Do this without exceptions
                 return
-            time = f"{text[1].split('=')[1].split(" ")[2]}"
+            time_0 = self.data[0][TIME]
+            l = len(self.data)
+            exact_time = time_0 + sel.index * (self.data[l - 1][TIME] - time_0) / l
+            time = self.reformat_time(exact_time).split(" ")[2]
             sel.annotation.get_bbox_patch().set(fc=COLOR_ANNOTATION_BOX, alpha=1, zorder=BIG_Z_ORDER)
             sel.annotation.set_text(f"{sel.target[1]:.2f} {MM}\n{time}")
             labels = [line.get_label() for line in sel.artist.axes.lines]
@@ -246,7 +250,7 @@ class WeatherForecast:
             if SNOW in json_line and THREE_HOURS in json_line[SNOW]:
                 data_point[SNOW] = json_line[SNOW][THREE_HOURS]
             data.append(data_point)
-        return data
+        self.data = data
 
     @staticmethod
     def reformat_time(in_date):
@@ -281,9 +285,10 @@ def parse_args():
 if __name__ == '__main__':
 
     # avoid stacktrace in debug output
-    def report_callback_exception(self, exc, val, tb):
-        # logging.warning(f"tkinter callback exception: {exc}")
-        pass
+    def report_callback_exception(exc, val, tb):
+        import traceback
+        error_details = "".join(traceback.format_exception(exc, val, tb))
+        # logging.warning(f"tkinter callback exception: {error_details}")
 
     tk.Tk.report_callback_exception = report_callback_exception
     args = parse_args()
