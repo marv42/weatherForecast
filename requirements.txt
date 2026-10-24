@@ -1,4 +1,4 @@
-certifi==2026.2.25
+certifi==2026.10.19
 chardet==7.4.3
 charset-normalizer==3.4.7
 contourpy==1.3.3
